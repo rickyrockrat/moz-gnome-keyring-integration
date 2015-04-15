@@ -1,4 +1,6 @@
 Components.utils.import("resource://gre/modules/ctypes.jsm");
+const { console } = Components.utils.import("resource://gre/modules/devtools/Console.jsm", {});
+console.log("Import gnome-keyring ");
 
 var EXPORTED_SYMBOLS = [ "Values", "itemGetAttributes", "itemGetInfo",
 	"itemDelete",  "itemCreate", "getItems", "getItemIDs", "getNames",
@@ -169,12 +171,6 @@ var gnome_keyring_list_keyring_names_sync = gnomeKeyringLib.declare("gnome_keyri
 	Type.GnomeKeyringResult, /* return */
 	Type.GList.ptr.ptr /* keyrings */);
 
-/**
- * GnomeKeyringAttributeList * gnome_keyring_attribute_list_new (void);
- */
-var gnome_keyring_attribute_list_new = gnomeKeyringLib.declare("gnome_keyring_attribute_list_new",
-	ctypes.default_abi,
-	Type.GnomeKeyringAttributeList.ptr /* return */);
 
 /**
  * void gnome_keyring_attribute_list_free (GnomeKeyringAttributeList *attributes);
@@ -327,22 +323,6 @@ var gnome_keyring_item_get_attributes_sync = gnomeKeyringLib.declare("gnome_keyr
 	Type.guint32, /* id */
 	Type.GnomeKeyringAttributeList.ptr.ptr /* attributes */);
 
-/**
- * const gchar * gnome_keyring_attribute_get_string (GnomeKeyringAttribute *attribute);
- */
-var gnome_keyring_attribute_get_string = gnomeKeyringLib.declare("gnome_keyring_attribute_get_string",
-	ctypes.default_abi,
-	Type.char.ptr, /* return */
-	Type.GnomeKeyringAttribute.ptr /* attribute*/);
-
-/**
- * guint32 gnome_keyring_attribute_get_uint32 (GnomeKeyringAttribute *attribute);
- */
-var gnome_keyring_attribute_get_uint32 = gnomeKeyringLib.declare("gnome_keyring_attribute_get_uint32",
-	ctypes.default_abi,
-	Type.guint32, /* return */
-	Type.GnomeKeyringAttribute.ptr /* attribute*/);
-
 
 create = function(keyring, password) {
 	if(typeof password != "string")
@@ -456,7 +436,7 @@ getItems = function(keyring) {
 itemCreate = function(keyring, type, displayName, attributes, secret,
 			      update_if_exists) {
 	var error = Values.Result.OK;
-	var attr = gnome_keyring_attribute_list_new();
+	var attr = Type.GnomeKeyringAttributeList.ptr(0);
 	if(attr == null)
 		throw "gnome_keyring_attribute_list_new failed";
 
@@ -502,15 +482,17 @@ itemGetAttributes = function(keyring, id) {
 		throw "gnome_keyring_item_get_attributes_sync failed: " + error;
 
 	var attributesOut = {};
-	var arrayType = new ctypes.ArrayType(Type.GnomeKeyringAttribute,
-					     attributes.contents.len);
+	if(0 == attributes.contents.len)
+		return attributesOut;
+	var arrayType = new ctypes.ArrayType(Type.GnomeKeyringAttribute, attributes.contents.len);
+	
 	var array = ctypes.cast(attributes.contents.data, arrayType.ptr).contents
 	for(var i=0; i<array.length; i++) {
 		var value = null;
-		if(array[i].type == Values.AttributeType.STRING)
-			value = gnome_keyring_attribute_get_string(array[i].address()).readString();
+		if(array[i].type == Values.AttributeType.STRING) 
+			value = ctypes.cast(array[i].value, Type.char.ptr);  
 		else if(array[i].type == Values.AttributeType.UINT32)
-			value = gnome_keyring_attribute_get_uint32(array[i].address());
+			value = ctypes.cast(array[i].value, Type.guint32);  
 		attributesOut[array[i].name.readString()] = value;
 	}
 

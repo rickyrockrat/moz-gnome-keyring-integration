@@ -1,6 +1,8 @@
 const Cc = Components.classes;
 const Ci = Components.interfaces;
-
+const { console } = Components.utils.import("resource://gre/modules/devtools/Console.jsm", {});
+//let console = (Cu.import("resource://gre/modules/devtools/Console.jsm", {})).console;
+console.log("Start login man ");
 Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
 Components.utils.import("resource://gre/modules/Promise.jsm");
 
